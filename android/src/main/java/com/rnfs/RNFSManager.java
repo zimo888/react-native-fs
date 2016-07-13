@@ -25,6 +25,7 @@ import java.net.URLConnection;
 import java.net.HttpURLConnection;
 
 import com.facebook.react.bridge.NativeModule;
+import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
@@ -39,6 +40,7 @@ import com.facebook.react.modules.core.RCTNativeAppEventEmitter;
 public class RNFSManager extends ReactContextBaseJavaModule {
 
   private static final String NSDocumentDirectoryPath = "NSDocumentDirectoryPath";
+  private static final String MainBundlePath = "MainBundlePath";
   private static final String NSExternalDirectoryPath = "NSExternalDirectoryPath";
   private static final String NSPicturesDirectoryPath = "NSPicturesDirectoryPath";
   private static final String NSTemporaryDirectoryPath = "NSTemporaryDirectoryPath";
@@ -120,6 +122,23 @@ public class RNFSManager extends ReactContextBaseJavaModule {
     }
   }
 
+   @ReactMethod
+  public void copyFile(String filepath, String destPath,Callback callback) {
+    try {
+      Copy copy = new Copy();
+      copy.copy(filepath, destPath);
+//      File from = new File(filepath);
+//      File to = new File(destPath);
+//      --
+//      from.renameTo(to);
+
+      callback.invoke(null, true, destPath);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      callback.invoke(makeErrorPayload(ex));
+    }
+  }
+
   @ReactMethod
   public void readDir(String directory, Callback callback) {
     try {
@@ -172,18 +191,21 @@ public class RNFSManager extends ReactContextBaseJavaModule {
   }
 
   @ReactMethod
-  public void unlink(String filepath, Callback callback) {
+  public void unlink(String filepath, Callback callback,Promise promise) {
     try {
       File file = new File(filepath);
 
       if (!file.exists()) throw new Exception("File does not exist");
 
       boolean success = DeleteRecursive(file);
-
-      callback.invoke(null, success, filepath);
+      if(callback != null)
+        callback.invoke(null, success, filepath);
+      promise.resolve(success);
     } catch (Exception ex) {
       ex.printStackTrace();
-      callback.invoke(makeErrorPayload(ex));
+      if(callback != null)
+        callback.invoke(makeErrorPayload(ex));
+      promise.resolve(false);
     }
   }
 
@@ -226,14 +248,12 @@ public class RNFSManager extends ReactContextBaseJavaModule {
       URL url = new URL(options.getString("fromUrl"));
       final int jobId = options.getInt("jobId");
       ReadableMap headers = options.getMap("headers");
-      int progressDivider = options.getInt("progressDivider");
 
       DownloadParams params = new DownloadParams();
 
       params.src = url;
       params.dest = file;
       params.headers = headers;
-      params.progressDivider = progressDivider;
 
       params.onTaskCompleted = new DownloadParams.OnTaskCompleted() {
         public void onTaskCompleted(DownloadResult res) {
@@ -345,10 +365,13 @@ public class RNFSManager extends ReactContextBaseJavaModule {
     } else {
         constants.put(NSExternalDirectoryPath, null);
     }
+    constants.put(MainBundlePath,"file:///android_asset");
     constants.put(NSPicturesDirectoryPath, Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES).getAbsolutePath());
     constants.put(NSCachesDirectoryPath, this.getReactApplicationContext().getCacheDir().getAbsolutePath());
     constants.put(NSFileTypeRegular, 0);
     constants.put(NSFileTypeDirectory, 1);
     return constants;
   }
+
+
 }
