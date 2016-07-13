@@ -1,3 +1,3 @@
 ## extend react-native-fs
-add copy file
+add copy file support Android ,iOS
 
